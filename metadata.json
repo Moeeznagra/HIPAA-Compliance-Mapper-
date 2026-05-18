@@ -1,0 +1,6 @@
+{
+  "name": "SafeGuard HIPAA Mapper",
+  "description": "Automated HIPAA Security Rule compliance mapper with NIST SP 800-66 alignment and gap analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

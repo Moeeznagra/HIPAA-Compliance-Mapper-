@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validations ---
+    function isValidAssessment(data) {
+      return data.keys().hasAll(['id', 'name', 'status', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 6 &&
+             data.id is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.status in ['IN_PROGRESS', 'COMPLETED', 'ARCHIVED'] &&
+             data.ownerId == request.auth.uid &&
+             data.createdAt == request.time &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidAssessmentUpdate(data) {
+      return data.keys().hasAll(['id', 'name', 'status', 'ownerId', 'createdAt', 'updatedAt']) &&
+             data.keys().size() == 6 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.status in ['IN_PROGRESS', 'COMPLETED', 'ARCHIVED'] &&
+             data.ownerId == existing().ownerId &&
+             data.createdAt == existing().createdAt &&
+             data.updatedAt == request.time;
+    }
+
+    function isValidFinding(data) {
+      return data.keys().hasAll(['id', 'assessmentId', 'safeguardId', 'complianceStatus', 'updatedAt']) &&
+             (data.keys().size() == 5 || (data.keys().size() == 7 && data.keys().hasAll(['comments', 'mappedControls']))) &&
+             data.id is string &&
+             data.assessmentId is string &&
+             data.safeguardId is string &&
+             data.complianceStatus in ['COMPLIANT', 'NON_COMPLIANT', 'NOT_APPLICABLE', 'IN_PROGRESS'] &&
+             data.updatedAt == request.time;
+    }
+
+    // --- Rules ---
+
+    match /assessments/{assessmentId} {
+      allow read: if isSignedIn() && existing().ownerId == request.auth.uid;
+      allow create: if isVerified() && isValidAssessment(incoming());
+      allow update: if isVerified() && existing().ownerId == request.auth.uid && isValidAssessmentUpdate(incoming());
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+
+      match /findings/{findingId} {
+        allow read: if isSignedIn() && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.ownerId == request.auth.uid;
+        allow write: if isVerified() && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.ownerId == request.auth.uid && isValidFinding(incoming());
+      }
+    }
+
+    match /controls/{controlId} {
+      allow read: if isSignedIn() && (existing().ownerId == request.auth.uid || existing().ownerId == 'SYSTEM');
+      allow create: if isVerified() && incoming().ownerId == request.auth.uid;
+      allow update: if isVerified() && existing().ownerId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().ownerId == request.auth.uid;
+    }
+  }
+}

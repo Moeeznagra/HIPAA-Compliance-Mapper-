@@ -1,0 +1,59 @@
+{
+  "entities": {
+    "Assessment": {
+      "title": "Assessment",
+      "description": "A HIPAA compliance assessment session.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["IN_PROGRESS", "COMPLETED", "ARCHIVED"] },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "status", "ownerId", "createdAt", "updatedAt"]
+    },
+    "Finding": {
+      "title": "Finding",
+      "description": "A specific finding for a HIPAA safeguard.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "assessmentId": { "type": "string" },
+        "safeguardId": { "type": "string", "description": "HIPAA reference like 164.308(a)(1)(i)" },
+        "complianceStatus": { "type": "string", "enum": ["COMPLIANT", "NON_COMPLIANT", "NOT_APPLICABLE", "IN_PROGRESS"] },
+        "comments": { "type": "string" },
+        "mappedControls": { "type": "array", "items": { "type": "string" } },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "assessmentId", "safeguardId", "complianceStatus", "updatedAt"]
+    },
+    "Control": {
+      "title": "Control",
+      "description": "An organizational security control.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "title", "description", "ownerId"]
+    }
+  },
+  "firestore": {
+    "/assessments/{assessmentId}": {
+      "schema": "Assessment",
+      "description": "Root collection for assessments."
+    },
+    "/assessments/{assessmentId}/findings/{findingId}": {
+      "schema": "Finding",
+      "description": "Sub-collection for safeguard findings within an assessment."
+    },
+    "/controls/{controlId}": {
+      "schema": "Control",
+      "description": "Library of organizational controls."
+    }
+  }
+}
